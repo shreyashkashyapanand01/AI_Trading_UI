@@ -1,13 +1,59 @@
 import React, { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { analyzeStock } from "../services/api";
-import { Search, TrendingUp, AlertCircle, Loader2, BrainCircuit } from "lucide-react";
+import {
+  Search, TrendingUp, TrendingDown, AlertCircle, Loader2,
+  BrainCircuit, BarChart2, Newspaper, DollarSign, Activity,
+} from "lucide-react";
+import {
+  Badge, MetricBar, DataRow, SectionLabel, SkeletonCard, AlertBox,
+} from "../components/ui";
 
+/* ── helpers ─────────────────────────────────────────── */
+function trendVariant(trend = "") {
+  const t = trend.toLowerCase();
+  if (t.includes("bull")) return "bullish";
+  if (t.includes("bear")) return "bearish";
+  return "neutral";
+}
+function sentimentVariant(text = "") {
+  const t = text.toLowerCase();
+  if (t.includes("positive") || t.includes("bull")) return "bullish";
+  if (t.includes("negative") || t.includes("bear")) return "bearish";
+  if (t.includes("neutral")) return "neutral";
+  return "caution";
+}
+function recommendVariant(rec = "") {
+  const r = rec.toLowerCase();
+  if (r === "buy") return "buy";
+  if (r === "sell") return "sell";
+  return "hold";
+}
+function momentumPct(m = "") {
+  const t = m.toLowerCase();
+  if (t === "strong") return 85;
+  if (t === "moderate" || t === "medium") return 55;
+  if (t === "weak") return 25;
+  return 50;
+}
+function rsiColor(rsi = "") {
+  const t = rsi.toLowerCase();
+  if (t === "overbought") return "text-red-400";
+  if (t === "oversold")   return "text-emerald-400";
+  return "text-yellow-400";
+}
+
+/* ── card animation variant ─────────────────────────── */
+const fadeUp = { hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0 } };
+
+/* ── component ───────────────────────────────────────── */
 function StockPage() {
   const [symbol, setSymbol] = useState("");
-  const [data, setData] = useState(null);
+  const [data,   setData]   = useState(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [error,  setError]  = useState(null);
 
+  // ── unchanged business logic ──
   const handleAnalyze = async () => {
     if (!symbol.trim()) return;
     setLoading(true);
@@ -23,27 +69,21 @@ function StockPage() {
       setLoading(false);
     }
   };
+  const handleKeyDown = (e) => { if (e.key === "Enter") handleAnalyze(); };
 
-  const handleKeyDown = (e) => {
-    if (e.key === "Enter") handleAnalyze();
-  };
+  const tech  = data?.technical   ?? {};
+  const fund  = data?.fundamental ?? {};
+  const news  = data?.news        ?? {};
 
   return (
-    <div className="glass-card p-6 flex flex-col gap-5 relative overflow-hidden">
-      {/* Decorative orb */}
-      <div className="absolute -top-10 -right-10 w-32 h-32 bg-brand-600 rounded-full blur-3xl opacity-20 pointer-events-none"></div>
-
-      <div className="flex items-center gap-2">
-        <BrainCircuit className="w-5 h-5 text-brand-400" />
-        <h2 className="text-xl font-bold text-surface-50">Stock Analyzer</h2>
-      </div>
-
+    <div className="space-y-6">
+      {/* ── Search bar ─────────────────────────────────── */}
       <div className="flex gap-3">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-surface-400 pointer-events-none" />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
           <input
-            className="w-full bg-surface-900 text-surface-50 placeholder-surface-400 pl-10 pr-4 py-3 rounded-xl border border-surface-700 focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 transition-all font-medium"
-            placeholder="Enter stock symbol (e.g. TCS, INFY)"
+            className="w-full bg-slate-900 text-white placeholder-slate-500 pl-11 pr-4 py-3.5 rounded-2xl border border-slate-700/60 focus:outline-none focus:border-violet-500/60 focus:ring-2 focus:ring-violet-500/10 transition-all font-medium text-sm"
+            placeholder="Enter stock symbol — e.g. TCS, INFY, HDFCBANK"
             value={symbol}
             onChange={(e) => setSymbol(e.target.value)}
             onKeyDown={handleKeyDown}
@@ -52,60 +92,151 @@ function StockPage() {
         <button
           onClick={handleAnalyze}
           disabled={loading || !symbol.trim()}
-          className="px-6 py-3 rounded-xl font-bold bg-gradient-to-r from-brand-600 to-indigo-500 text-white hover:from-brand-500 hover:to-indigo-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-brand-500/30 flex items-center gap-2 whitespace-nowrap"
+          className="px-6 py-3.5 rounded-2xl font-bold text-sm bg-gradient-to-r from-violet-600 to-indigo-500 text-white hover:from-violet-500 hover:to-indigo-400 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-lg shadow-violet-500/20 hover:shadow-violet-500/30 flex items-center gap-2 whitespace-nowrap"
         >
-          {loading ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" />
-              Analyzing…
-            </>
-          ) : (
-            <>
-              <TrendingUp className="w-4 h-4" />
-              Analyze
-            </>
-          )}
+          {loading
+            ? <><Loader2 className="w-4 h-4 animate-spin" />Analyzing…</>
+            : <><TrendingUp className="w-4 h-4" />Analyze</>}
         </button>
       </div>
 
-      {error && (
-        <div className="flex items-start gap-3 bg-danger-500/10 border border-danger-500/30 rounded-xl p-4 text-danger-400 text-sm">
-          <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
-          {error}
-        </div>
-      )}
+      {/* ── States ─────────────────────────────────────── */}
+      {error && <AlertBox message={error} />}
 
-      {data && (
-        <div className="space-y-4">
-          <div className="bg-surface-900/50 border border-surface-700 rounded-xl p-5">
-            <p className="text-xs text-surface-400 uppercase font-bold tracking-widest mb-1">Symbol</p>
-            <p className="text-2xl font-mono font-bold text-brand-300">{data.symbol}</p>
-          </div>
+      {loading && <SkeletonCard />}
 
-          <div className="bg-surface-900/50 border border-surface-700 rounded-xl p-5">
-            <p className="text-xs text-surface-400 uppercase font-bold tracking-widest mb-2">AI Summary</p>
-            <p className="text-surface-200 leading-relaxed">{data.summary}</p>
-          </div>
+      {/* ── Results ────────────────────────────────────── */}
+      <AnimatePresence>
+        {data && !loading && (
+          <motion.div
+            key="results"
+            variants={{ show: { transition: { staggerChildren: 0.07 } } }}
+            initial="hidden"
+            animate="show"
+            className="space-y-4"
+          >
+            {/* Header row */}
+            <motion.div variants={fadeUp} className="flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold text-white font-mono">{data.symbol}</h2>
+                <p className="text-xs text-slate-500 mt-0.5">AI Analysis Report</p>
+              </div>
+              {data.recommendation && (
+                <Badge label={data.recommendation} variant={recommendVariant(data.recommendation)} />
+              )}
+            </motion.div>
 
-          {data.recommendation && (
-            <div className={`rounded-xl p-4 border text-sm font-semibold flex items-center gap-2
-              ${data.recommendation === "BUY"
-                ? "bg-success-500/10 border-success-500/30 text-success-400"
-                : data.recommendation === "SELL"
-                ? "bg-danger-500/10 border-danger-500/30 text-danger-400"
-                : "bg-brand-500/10 border-brand-500/30 text-brand-400"
-              }`}
-            >
-              <TrendingUp className="w-4 h-4" />
-              Recommendation: {data.recommendation}
+            {/* Technical + Fundamental grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+              {/* Technical */}
+              <motion.div variants={fadeUp} className="bg-slate-900 border border-slate-800/60 rounded-2xl p-5">
+                <div className="flex items-center gap-2 mb-4">
+                  <Activity className="w-4 h-4 text-violet-400" />
+                  <SectionLabel>Technical Signals</SectionLabel>
+                </div>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-slate-400">Trend</span>
+                    <Badge label={tech.trend ?? "—"} variant={trendVariant(tech.trend)} />
+                  </div>
+                  <MetricBar
+                    label="Momentum"
+                    value={momentumPct(tech.momentum)}
+                    colorClass={
+                      tech.momentum?.toLowerCase() === "strong" ? "bg-emerald-500"
+                       : tech.momentum?.toLowerCase() === "weak" ? "bg-red-500"
+                       : "bg-yellow-500"
+                    }
+                  />
+                  <DataRow
+                    label="RSI Condition"
+                    value={tech.rsi ?? "—"}
+                    valueClass={rsiColor(tech.rsi)}
+                  />
+                  <DataRow label="Volatility" value={tech.volatility ?? "—"} />
+                </div>
+              </motion.div>
+
+              {/* Fundamental */}
+              <motion.div variants={fadeUp} className="bg-slate-900 border border-slate-800/60 rounded-2xl p-5">
+                <div className="flex items-center gap-2 mb-4">
+                  <DollarSign className="w-4 h-4 text-indigo-400" />
+                  <SectionLabel>Fundamental Data</SectionLabel>
+                </div>
+                <div className="space-y-2">
+                  <DataRow label="Valuation"     value={fund.valuation    ?? "—"} />
+                  <DataRow label="Growth"         value={fund.growth       ?? "—"} />
+                  <DataRow
+                    label="Profit Margin"
+                    value={fund.profit_margin != null ? `${(fund.profit_margin * 100).toFixed(2)}%` : "—"}
+                    valueClass={fund.profit_margin > 0.15 ? "text-emerald-400" : "text-red-400"}
+                  />
+                  <DataRow
+                    label="Debt / Equity"
+                    value={fund.debt_to_equity != null ? fund.debt_to_equity.toFixed(2) : "—"}
+                    valueClass={fund.debt_to_equity > 5 ? "text-red-400" : "text-emerald-400"}
+                  />
+                </div>
+              </motion.div>
             </div>
-          )}
-        </div>
-      )}
 
+            {/* News Sentiment */}
+            {news.headlines && (
+              <motion.div variants={fadeUp} className="bg-slate-900 border border-slate-800/60 rounded-2xl p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Newspaper className="w-4 h-4 text-sky-400" />
+                    <SectionLabel>News Sentiment</SectionLabel>
+                  </div>
+                  <Badge
+                    label={sentimentVariant(news.analysis ?? "")}
+                    variant={sentimentVariant(news.analysis ?? "")}
+                  />
+                </div>
+                <ul className="space-y-1.5 mb-4">
+                  {news.headlines.slice(0, 3).map((h, i) => (
+                    <li key={i} className="flex items-start gap-2 text-xs text-slate-400">
+                      <span className="mt-1 w-1 h-1 rounded-full bg-slate-600 shrink-0" />
+                      {h}
+                    </li>
+                  ))}
+                </ul>
+                {news.analysis && (
+                  <p className="text-xs text-slate-400 leading-relaxed border-t border-slate-800 pt-3">
+                    {news.analysis.replace(/\*\*/g, "").replace(/\*/g, "")}
+                  </p>
+                )}
+              </motion.div>
+            )}
+
+            {/* AI Summary */}
+            {data.summary && (
+              <motion.div variants={fadeUp} className="relative overflow-hidden bg-gradient-to-br from-violet-500/10 to-indigo-500/5 border border-violet-500/20 rounded-2xl p-5">
+                <div className="absolute top-3 right-3 opacity-10">
+                  <BrainCircuit className="w-16 h-16 text-violet-400" />
+                </div>
+                <div className="flex items-center gap-2 mb-3">
+                  <BrainCircuit className="w-4 h-4 text-violet-400" />
+                  <SectionLabel>AI Decision Summary</SectionLabel>
+                </div>
+                <p className="text-sm text-slate-200 leading-relaxed">{data.summary}</p>
+              </motion.div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Empty state */}
       {!data && !error && !loading && (
-        <div className="border border-dashed border-surface-700 rounded-xl p-8 text-center text-surface-500 text-sm">
-          Enter a stock symbol above and click <span className="text-brand-400 font-semibold">Analyze</span> to get AI-powered insights.
+        <div className="flex flex-col items-center justify-center py-20 text-center">
+          <div className="w-14 h-14 rounded-2xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center mb-4">
+            <BrainCircuit className="w-6 h-6 text-violet-400" />
+          </div>
+          <h3 className="text-slate-300 font-semibold mb-1">Ready to analyze</h3>
+          <p className="text-sm text-slate-500 max-w-xs">
+            Type a stock symbol above and press <kbd className="text-violet-400 font-mono">Enter</kbd> or click <span className="text-violet-400 font-semibold">Analyze</span>.
+          </p>
         </div>
       )}
     </div>
