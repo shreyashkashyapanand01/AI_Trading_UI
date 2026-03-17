@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const API = axios.create({
-  baseURL: "", // Vite proxy forwards /stock/* → localhost:8080
+  baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:8080",
 });
 
 export const analyzeStock = (symbol) =>
