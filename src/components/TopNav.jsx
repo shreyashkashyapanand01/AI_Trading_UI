@@ -1,8 +1,21 @@
 import { useState } from "react";
-import { Sun, Moon, Bell, Menu, BrainCircuit, Radar } from "lucide-react";
+import { Sun, Moon, Bell, Menu, BrainCircuit, Radar, Activity } from "lucide-react";
+
+const NAV_ITEMS = [
+  { id: "advisor", label: "Stock Advisor",    Icon: BrainCircuit },
+  { id: "scanner", label: "Opportunity Finder", Icon: Radar },
+  { id: "trades",  label: "Trade Analyser",   Icon: Activity },
+];
+
+const PAGE_TITLES = {
+  advisor: { title: "Stock Advisor",       sub: "AI-powered single stock analysis" },
+  scanner: { title: "Opportunity Finder",  sub: "AI market scan for top opportunities" },
+  trades:  { title: "Trade Analyser",      sub: "Analyze your trades and improve your strategy" },
+};
 
 export function TopNav({ activePage, setActivePage, darkMode, setDarkMode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const page = PAGE_TITLES[activePage] ?? PAGE_TITLES.advisor;
 
   return (
     <>
@@ -22,14 +35,8 @@ export function TopNav({ activePage, setActivePage, darkMode, setDarkMode }) {
 
           {/* Center: Page title */}
           <div className="hidden md:block">
-            <h1 className="text-sm font-semibold text-white">
-              {activePage === "advisor" ? "Stock Advisor" : "Opportunity Finder"}
-            </h1>
-            <p className="text-[10px] text-slate-500 mt-0.5">
-              {activePage === "advisor"
-                ? "AI-powered single stock analysis"
-                : "AI market scan for top opportunities"}
-            </p>
+            <h1 className="text-sm font-semibold text-white">{page.title}</h1>
+            <p className="text-[10px] text-slate-500 mt-0.5">{page.sub}</p>
           </div>
 
           {/* Right: actions */}
@@ -58,10 +65,7 @@ export function TopNav({ activePage, setActivePage, darkMode, setDarkMode }) {
           <div className="absolute inset-0 bg-black/60" onClick={() => setMobileOpen(false)} />
           <div className="absolute left-0 top-0 h-full w-64 bg-slate-950 border-r border-slate-800 p-4 space-y-2">
             <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold mb-4 px-2">Navigation</p>
-            {[
-              { id: "advisor", label: "Stock Advisor", Icon: BrainCircuit },
-              { id: "scanner", label: "Opportunity Finder", Icon: Radar },
-            ].map(({ id, label, Icon }) => (
+            {NAV_ITEMS.map(({ id, label, Icon }) => (
               <button
                 key={id}
                 onClick={() => { setActivePage(id); setMobileOpen(false); }}

@@ -3,6 +3,7 @@ import { Sidebar } from "./components/Sidebar";
 import { TopNav  } from "./components/TopNav";
 import StockPage   from "./pages/StockPage";
 import ScanPage    from "./pages/ScanPage";
+import TradePage   from "./pages/TradePage";
 
 function App() {
   const [activePage, setActivePage] = useState("advisor");
@@ -26,6 +27,7 @@ function App() {
           <main className="flex-1 p-4 md:p-8 max-w-5xl w-full mx-auto">
             {activePage === "advisor"  && <StockPage />}
             {activePage === "scanner" && <ScanPage />}
+            {activePage === "trades"  && <TradePage />}
           </main>
 
           {/* Footer */}
