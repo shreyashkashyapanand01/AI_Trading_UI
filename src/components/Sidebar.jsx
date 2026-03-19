@@ -1,12 +1,13 @@
 import { useState } from "react";
 import {
   LayoutDashboard, BrainCircuit, Radar,
-  ChevronRight, TrendingUp, Hexagon,
+  ChevronRight, TrendingUp, Hexagon, Activity,
 } from "lucide-react";
 
 const navItems = [
-  { id: "advisor",     label: "Stock Advisor",       icon: BrainCircuit },
-  { id: "scanner",   label: "Opportunity Finder",   icon: Radar },
+  { id: "advisor",  label: "Stock Advisor",          icon: BrainCircuit },
+  { id: "scanner",  label: "Opportunity Finder",     icon: Radar },
+  { id: "trades",   label: "Trade Analyser",         icon: Activity },
 ];
 
 export function Sidebar({ activePage, setActivePage }) {
