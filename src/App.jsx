@@ -4,7 +4,7 @@ import { TopNav  } from "./components/TopNav";
 import StockPage   from "./pages/StockPage";
 import ScanPage    from "./pages/ScanPage";
 import TradePage   from "./pages/TradePage";
-
+import PortfolioPage from "./pages/PortfolioPage";
 function App() {
   const [activePage, setActivePage] = useState("advisor");
   const [darkMode,   setDarkMode]   = useState(true);
@@ -28,6 +28,7 @@ function App() {
             {activePage === "advisor"  && <StockPage />}
             {activePage === "scanner" && <ScanPage />}
             {activePage === "trades"  && <TradePage />}
+            {activePage === "portfolio" && <PortfolioPage />}
           </main>
 
           {/* Footer */}
