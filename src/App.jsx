@@ -25,10 +25,18 @@ function App() {
           />
 
           <main className="flex-1 p-4 md:p-8 max-w-5xl w-full mx-auto">
-            {activePage === "advisor"  && <StockPage />}
-            {activePage === "scanner" && <ScanPage />}
-            {activePage === "trades"  && <TradePage />}
-            {activePage === "portfolio" && <PortfolioPage />}
+            <div className={activePage === "advisor" ? "block" : "hidden"}>
+              <StockPage />
+            </div>
+            <div className={activePage === "scanner" ? "block" : "hidden"}>
+              <ScanPage />
+            </div>
+            <div className={activePage === "trades" ? "block" : "hidden"}>
+              <TradePage />
+            </div>
+            <div className={activePage === "portfolio" ? "block" : "hidden"}>
+              <PortfolioPage />
+            </div>
           </main>
 
           {/* Footer */}
