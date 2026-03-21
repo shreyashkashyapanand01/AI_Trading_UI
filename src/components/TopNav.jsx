@@ -1,16 +1,18 @@
 import { useState } from "react";
-import { Sun, Moon, Bell, Menu, BrainCircuit, Radar, Activity } from "lucide-react";
+import { Sun, Moon, Bell, Menu, BrainCircuit, Radar, Activity, PieChart } from "lucide-react";
 
 const NAV_ITEMS = [
   { id: "advisor", label: "Stock Advisor",    Icon: BrainCircuit },
   { id: "scanner", label: "Opportunity Finder", Icon: Radar },
   { id: "trades",  label: "Trade Analyser",   Icon: Activity },
+  { id: "portfolio", label: "Portfolio",      Icon: PieChart },
 ];
 
 const PAGE_TITLES = {
   advisor: { title: "Stock Advisor",       sub: "AI-powered single stock analysis" },
   scanner: { title: "Opportunity Finder",  sub: "AI market scan for top opportunities" },
   trades:  { title: "Trade Analyser",      sub: "Analyze your trades and improve your strategy" },
+  portfolio: { title: "Portfolio",         sub: "Manage and analyze your stock holdings with AI" },
 };
 
 export function TopNav({ activePage, setActivePage, darkMode, setDarkMode }) {

@@ -2,12 +2,14 @@ import { useState } from "react";
 import {
   LayoutDashboard, BrainCircuit, Radar,
   ChevronRight, TrendingUp, Hexagon, Activity,
+  PieChart
 } from "lucide-react";
 
 const navItems = [
   { id: "advisor",  label: "Stock Advisor",          icon: BrainCircuit },
   { id: "scanner",  label: "Opportunity Finder",     icon: Radar },
   { id: "trades",   label: "Trade Analyser",         icon: Activity },
+  { id: "portfolio", label: "Portfolio", icon: PieChart },
 ];
 
 export function Sidebar({ activePage, setActivePage }) {
@@ -45,6 +47,12 @@ export function Sidebar({ activePage, setActivePage }) {
               <item.icon className={`w-4 h-4 shrink-0 ${active ? "text-violet-400" : "text-slate-500 group-hover:text-slate-300"}`} />
               <span className="flex-1 text-left">{item.label}</span>
               {active && <ChevronRight className="w-3.5 h-3.5 text-violet-500" />}
+            
+            {item.badge && (
+            <span className="text-[9px] px-2 py-0.5 rounded bg-violet-500/20 text-violet-300">
+              {item.badge}
+            </span>
+          )}
             </button>
           );
         })}
