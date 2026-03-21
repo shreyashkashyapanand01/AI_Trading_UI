@@ -375,7 +375,7 @@ const PortfolioPage = () => {
             <motion.div 
               initial={{ opacity: 0, scale: 0.98 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="space-y-6"
+              className="space-y-6" 
             >
               {/* Top Metrics */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
