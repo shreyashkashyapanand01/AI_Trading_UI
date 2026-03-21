@@ -5,10 +5,11 @@ import {
   getHoldings,
   analyzePortfolio,
   updateHolding,
-  deleteHolding
+  deleteHolding,
+  createUser
 } from "../services/api";
 import {
-  Briefcase, Plus, Edit2, Trash2, PieChart, Loader2, Target, TrendingUp, AlertTriangle, Activity, Check, X, Shield, BarChart3, Fingerprint, Zap
+  Briefcase, Plus, Edit2, Trash2, PieChart, Loader2, Target, TrendingUp, AlertTriangle, Activity, Check, X, Shield, BarChart3, Fingerprint, Zap, UserPlus
 } from "lucide-react";
 import { Badge, AlertBox, SkeletonBlock } from "../components/ui";
 
@@ -29,6 +30,34 @@ const PortfolioPage = () => {
 
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({ quantity: "", buy_price: "" });
+
+  const [newUser, setNewUser] = useState({ name: "", email: "" });
+  const [createdUserId, setCreatedUserId] = useState(null);
+  const [creatingUser, setCreatingUser] = useState(false);
+  const [userError, setUserError] = useState(null);
+  const [userSuccessMessage, setUserSuccessMessage] = useState("");
+
+  // Create user
+  const handleCreateUser = async (e) => {
+    e.preventDefault();
+    if (!newUser.name || !newUser.email) return;
+    setCreatingUser(true);
+    setUserError(null);
+    setUserSuccessMessage("");
+    try {
+      const res = await createUser({ name: newUser.name, email: newUser.email });
+      const newId = res.data.id;
+      setCreatedUserId(newId);
+      setUserId(newId);
+      setNewUser({ name: "", email: "" });
+      setUserSuccessMessage(`User Created Successfully! ID: ${newId}`);
+    } catch (err) {
+      console.error(err);
+      setUserError("Failed to create user.");
+    } finally {
+      setCreatingUser(false);
+    }
+  };
 
   // Load holdings
   const loadHoldings = async () => {
@@ -137,6 +166,38 @@ const PortfolioPage = () => {
 
   return (
     <div className="space-y-6">
+
+      {/* Add New User Temporary Section */}
+      <div className="bg-slate-900 border border-slate-800/60 rounded-2xl p-5 mb-4 shadow-sm">
+        <h2 className="text-sm font-semibold text-slate-300 flex items-center gap-2 mb-4">
+          <UserPlus className="w-4 h-4 text-violet-400" /> Add New User
+        </h2>
+        <form onSubmit={handleCreateUser} className="flex flex-col md:flex-row gap-4 items-start md:items-center">
+          <input
+            className="flex-1 w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-violet-500 transition-colors"
+            placeholder="Name"
+            value={newUser.name}
+            onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
+          />
+          <input
+            type="email"
+            className="flex-1 w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-violet-500 transition-colors"
+            placeholder="Email"
+            value={newUser.email}
+            onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+          />
+          <button
+            type="submit"
+            disabled={!newUser.name || !newUser.email || creatingUser}
+            className="w-full md:w-32 py-2.5 rounded-xl text-sm font-bold bg-violet-600 text-white hover:bg-violet-500 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+          >
+            {creatingUser ? <Loader2 className="w-4 h-4 animate-spin" /> : "Create User"}
+          </button>
+        </form>
+        {userError && <p className="text-red-400 text-xs mt-3">{userError}</p>}
+        {userSuccessMessage && <p className="text-emerald-400 text-xs mt-3">{userSuccessMessage}</p>}
+      </div>
+
       {/* Header section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
