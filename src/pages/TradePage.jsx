@@ -1,13 +1,15 @@
 import React, { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { PieChart, Pie, Cell, ResponsiveContainer, RadialBarChart, RadialBar } from "recharts";
 import { analyzeTrades, uploadTradesCSV } from "../services/api";
 import {
   Plus, Trash2, UploadCloud, Loader2, BrainCircuit,
   AlertCircle, ChevronDown, BarChart2, Lightbulb,
-  ShieldAlert, Activity, FileText, CheckCircle2,
+  ShieldAlert, Activity, FileText, CheckCircle2, Download
 } from "lucide-react";
+import toast from "react-hot-toast";
 import {
-  Badge, DataRow, SectionLabel, SkeletonCard, AlertBox,
+  Badge, DataRow, SectionLabel, SkeletonCard, AlertBox, TypingText
 } from "../components/ui";
 
 /* ── helpers ─────────────────────────────────────────────────── */
@@ -194,16 +196,16 @@ function TradePage() {
   /* ── manual submit ── */
   const handleAnalyze = async () => {
     const validationErr = validateTrades();
-    if (validationErr) { setError(validationErr); return; }
+    if (validationErr) { toast.error(validationErr); return; }
     setLoading(true);
-    setError(null);
     setResult(null);
     try {
       const res = await analyzeTrades({ trades: transformTrades(trades) });
       setResult(res.data);
+      toast.success("Trades analyzed successfully!");
     } catch (err) {
       console.error(err);
-      setError(
+      toast.error(
         err?.response?.data?.message ||
         "Failed to analyze trades. Please ensure the backend is running on port 8080."
       );
@@ -214,25 +216,41 @@ function TradePage() {
 
   /* ── csv submit ── */
   const handleCsvUpload = async () => {
-    if (!csvFile) { setCsvError("Please select a CSV file first."); return; }
+    if (!csvFile) { toast.error("Please select a CSV file first."); return; }
     setCsvLoading(true);
-    setCsvError(null);
     setResult(null);
-    setError(null);
     try {
       const formData = new FormData();
       formData.append("file", csvFile);
       const res = await uploadTradesCSV(formData);
       setResult(res.data);
+      toast.success("CSV analyzed successfully!");
     } catch (err) {
       console.error(err);
-      setCsvError(
+      toast.error(
         err?.response?.data?.message ||
         "Failed to upload CSV. Please ensure the file format is correct."
       );
     } finally {
       setCsvLoading(false);
     }
+  };
+
+  const exportTradesCSV = () => {
+    if (!trades || trades.length === 0 || !trades[0].symbol) {
+      toast.error("No valid trades to export.");
+      return;
+    }
+    const header = "Symbol,Entry Price,Exit Price,Quantity,Type,Side,Hold Mins,P&L\n";
+    const rows = trades.map(t => `${t.symbol},${t.entryPrice},${t.exitPrice},${t.quantity},${t.type},${t.side},${t.holdingMinutes},${t.profitLoss}`).join("\n");
+    const blob = new Blob([header + rows], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `trades_export.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Trades exported as CSV!");
   };
 
   /* ── derived result data ── */
@@ -275,7 +293,7 @@ function TradePage() {
         ].map(({ key, label, icon: Icon }) => (
           <button
             key={key}
-            onClick={() => { setInputTab(key); setError(null); setCsvError(null); }}
+            onClick={() => { setInputTab(key); }}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200
               ${inputTab === key
                 ? "bg-violet-500/15 text-violet-300 border border-violet-500/20"
@@ -324,7 +342,6 @@ function TradePage() {
             </button>
           </div>
 
-          {error && <AlertBox message={error} />}
           {loading && <SkeletonCard />}
         </div>
       )}
@@ -352,7 +369,7 @@ function TradePage() {
               type="file"
               accept=".csv"
               className="hidden"
-              onChange={(e) => { setCsvFile(e.target.files[0] || null); setCsvError(null); }}
+              onChange={(e) => { setCsvFile(e.target.files[0] || null); }}
             />
           </div>
 
@@ -382,7 +399,6 @@ function TradePage() {
             }
           </button>
 
-          {csvError && <AlertBox message={csvError} />}
           {csvLoading && <SkeletonCard />}
         </div>
       )}
@@ -400,7 +416,12 @@ function TradePage() {
             {/* Header divider */}
             <motion.div variants={fadeUp} className="flex items-center gap-3 pt-2">
               <div className="h-px flex-1 bg-slate-800/80" />
-              <span className="text-[10px] uppercase tracking-widest text-slate-600 font-bold">Analysis Results</span>
+              <div className="flex items-center gap-3">
+                <span className="text-[10px] uppercase tracking-widest text-slate-600 font-bold">Analysis Results</span>
+                <button onClick={exportTradesCSV} className="text-xs flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 transition-colors">
+                  <Download className="w-3.5 h-3.5" /> Export Data
+                </button>
+              </div>
               <div className="h-px flex-1 bg-slate-800/80" />
             </motion.div>
 
@@ -429,67 +450,109 @@ function TradePage() {
                 </div>
               )}
               {summaryText && (
-                <p className="text-sm text-slate-200 leading-relaxed">{summaryText}</p>
+                <p className="text-sm text-slate-200 leading-relaxed min-h-[60px]">
+                  <TypingText text={summaryText} speed={15} />
+                </p>
               )}
             </motion.div>
 
-            {/* Mistakes */}
-            {mistakes.length > 0 && (
-              <motion.div variants={fadeUp} className="bg-slate-900 border border-red-500/20 rounded-2xl p-5">
-                <div className="flex items-center gap-2 mb-4">
-                  <ShieldAlert className="w-4 h-4 text-red-400" />
-                  <SectionLabel>Detected Mistakes</SectionLabel>
+            {/* Charts Row */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <motion.div variants={fadeUp} className="bg-slate-900 border border-slate-800/60 rounded-2xl p-5 flex flex-col items-center justify-center">
+                <SectionLabel>Win Rate</SectionLabel>
+                <div className="h-48 w-full mt-2">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={[
+                          { name: "Wins", value: (m.winRate || 0) * 100 },
+                          { name: "Losses", value: (1 - (m.winRate || 0)) * 100 }
+                        ]}
+                        innerRadius={60}
+                        outerRadius={80}
+                        paddingAngle={5}
+                        dataKey="value"
+                        stroke="none"
+                      >
+                        <Cell fill="#10b981" />
+                        <Cell fill="#ef4444" />
+                      </Pie>
+                    </PieChart>
+                  </ResponsiveContainer>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  {mistakes.map((m, i) => (
-                    <span
-                      key={i}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-red-500/10 text-red-400 border border-red-500/20"
+                <div className="flex items-center gap-4 text-xs font-semibold mt-2">
+                  <span className="flex items-center gap-1.5 text-emerald-400">
+                    <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" /> Wins
+                  </span>
+                  <span className="flex items-center gap-1.5 text-red-400">
+                    <div className="w-2.5 h-2.5 rounded-full bg-red-500" /> Losses
+                  </span>
+                </div>
+              </motion.div>
+
+              <motion.div variants={fadeUp} className="bg-slate-900 border border-slate-800/60 rounded-2xl p-5 flex flex-col items-center justify-center">
+                <SectionLabel>Risk Score</SectionLabel>
+                <div className="h-48 w-full mt-2">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RadialBarChart
+                      cx="50%" cy="50%" innerRadius="70%" outerRadius="100%" barSize={15}
+                      data={[{ name: "Risk", value: riskScore || 0 }]}
+                      startAngle={180} endAngle={0}
                     >
-                      <AlertCircle className="w-3 h-3" />
-                      {m}
-                    </span>
-                  ))}
+                      <RadialBar
+                        minAngle={15} background={{ fill: '#1e293b' }} clockWise
+                        dataKey="value" fill={riskScore > 66 ? "#ef4444" : riskScore > 33 ? "#eab308" : "#10b981"}
+                        cornerRadius={10}
+                      />
+                    </RadialBarChart>
+                  </ResponsiveContainer>
                 </div>
+                <div className="text-xl font-bold font-mono mt-[-20px]">{riskScore || 0}/100</div>
               </motion.div>
-            )}
+            </div>
 
-            {/* Metrics Grid */}
-            <motion.div variants={fadeUp}>
-              <div className="flex items-center gap-2 mb-3">
-                <BarChart2 className="w-4 h-4 text-indigo-400" />
-                <SectionLabel>Performance Metrics</SectionLabel>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {metricItems.map(({ label, value }) => (
-                  <MetricCard key={label} label={label} value={value} />
-                ))}
-              </div>
-            </motion.div>
+            {/* Mistakes & Suggestions (Alert Cards) */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {mistakes.length > 0 && (
+                <motion.div variants={fadeUp} className="bg-red-500/10 border border-red-500/20 rounded-2xl p-5">
+                  <div className="flex items-center gap-2 mb-4">
+                    <ShieldAlert className="w-4 h-4 text-red-400" />
+                    <SectionLabel>Detected Mistakes</SectionLabel>
+                  </div>
+                  <ul className="space-y-3">
+                    {mistakes.map((m, i) => (
+                      <li key={i} className="flex items-start gap-2.5 text-sm text-red-200 bg-slate-900/50 p-3 rounded-xl border border-red-500/10">
+                        <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+                        <span>{m}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </motion.div>
+              )}
 
-            {/* Suggestions */}
-            {suggestions.length > 0 && (
-              <motion.div variants={fadeUp} className="bg-slate-900 border border-emerald-500/20 rounded-2xl p-5">
-                <div className="flex items-center gap-2 mb-4">
-                  <Lightbulb className="w-4 h-4 text-emerald-400" />
-                  <SectionLabel>AI Suggestions</SectionLabel>
-                </div>
-                <ul className="space-y-2.5">
-                  {suggestions.map((s, i) => (
-                    <li key={i} className="flex items-start gap-2.5 text-sm text-slate-300">
-                      <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
-                      {s}
-                    </li>
-                  ))}
-                </ul>
-              </motion.div>
-            )}
+              {suggestions.length > 0 && (
+                <motion.div variants={fadeUp} className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-5">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Lightbulb className="w-4 h-4 text-emerald-400" />
+                    <SectionLabel>AI Suggestions</SectionLabel>
+                  </div>
+                  <ul className="space-y-3">
+                    {suggestions.map((s, i) => (
+                      <li key={i} className="flex items-start gap-2.5 text-sm text-emerald-100 bg-slate-900/50 p-3 rounded-xl border border-emerald-500/10">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                        <span>{s}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </motion.div>
+              )}
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
 
       {/* ── Empty state ── */}
-      {!result && !loading && !csvLoading && !error && !csvError && (
+      {!result && !loading && !csvLoading && (
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <div className="w-14 h-14 rounded-2xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center mb-4">
             <Activity className="w-6 h-6 text-violet-400" />

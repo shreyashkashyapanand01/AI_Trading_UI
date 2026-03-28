@@ -5,8 +5,10 @@ import {
   Search, TrendingUp, TrendingDown, AlertCircle, Loader2,
   BrainCircuit, BarChart2, Newspaper, DollarSign, Activity,
 } from "lucide-react";
+import toast from "react-hot-toast";
+import { AdvancedRealTimeChart } from "react-ts-tradingview-widgets";
 import {
-  Badge, MetricBar, DataRow, SectionLabel, SkeletonCard, AlertBox,
+  Badge, MetricBar, DataRow, SectionLabel, SkeletonCard, Meter, TypingText
 } from "../components/ui";
 
 /* ── helpers ─────────────────────────────────────────── */
@@ -42,33 +44,58 @@ function rsiColor(rsi = "") {
   if (t === "oversold")   return "text-emerald-400";
   return "text-yellow-400";
 }
+function volPct(v = "") {
+  const t = v.toLowerCase();
+  if (t.includes("high")) return 85;
+  if (t.includes("medium") || t.includes("moderate")) return 50;
+  if (t.includes("low")) return 15;
+  return 50;
+}
+function volColor(v = "") {
+  const t = v.toLowerCase();
+  if (t.includes("high")) return "bg-red-500";
+  if (t.includes("low")) return "bg-emerald-500";
+  return "bg-yellow-500";
+}
 
 /* ── card animation variant ─────────────────────────── */
 const fadeUp = { hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0 } };
 
 /* ── component ───────────────────────────────────────── */
-function StockPage() {
+import { useEffect } from "react";
+
+function StockPage({ targetSymbol, setTargetSymbol }) {
   const [symbol, setSymbol] = useState("");
   const [data,   setData]   = useState(null);
   const [loading, setLoading] = useState(false);
-  const [error,  setError]  = useState(null);
 
   // ── unchanged business logic ──
-  const handleAnalyze = async () => {
-    if (!symbol.trim()) return;
+  const handleAnalyze = async (overrideSymbol) => {
+    const symToAnalyze = typeof overrideSymbol === 'string' ? overrideSymbol : symbol;
+    if (!symToAnalyze || !symToAnalyze.trim()) return;
     setLoading(true);
-    setError(null);
     setData(null);
     try {
-      const res = await analyzeStock(symbol.toUpperCase());
+      const res = await analyzeStock(symToAnalyze.toUpperCase());
       setData(res.data);
+      toast.success("Analysis complete");
     } catch (err) {
-      setError("Failed to fetch analysis. Make sure the backend is running on port 8080.");
+      toast.error("Failed to fetch analysis. Make sure the backend is running on port 8080.");
       console.error(err);
     } finally {
       setLoading(false);
     }
   };
+  
+  useEffect(() => {
+    if (targetSymbol) {
+      setSymbol(targetSymbol);
+      handleAnalyze(targetSymbol);
+      if (typeof setTargetSymbol === "function") {
+        setTargetSymbol("");
+      }
+    }
+  }, [targetSymbol]);
   const handleKeyDown = (e) => { if (e.key === "Enter") handleAnalyze(); };
 
   const tech  = data?.technical   ?? {};
@@ -101,7 +128,6 @@ function StockPage() {
       </div>
 
       {/* ── States ─────────────────────────────────────── */}
-      {error && <AlertBox message={error} />}
 
       {loading && <SkeletonCard />}
 
@@ -154,7 +180,12 @@ function StockPage() {
                     value={tech.rsi ?? "—"}
                     valueClass={rsiColor(tech.rsi)}
                   />
-                  <DataRow label="Volatility" value={tech.volatility ?? "—"} />
+                  <Meter 
+                    label="Volatility" 
+                    value={tech.volatility ?? "—"} 
+                    valuePct={volPct(tech.volatility)}
+                    colorClass={volColor(tech.volatility)}
+                  />
                 </div>
               </motion.div>
 
@@ -220,15 +251,28 @@ function StockPage() {
                   <BrainCircuit className="w-4 h-4 text-violet-400" />
                   <SectionLabel>AI Decision Summary</SectionLabel>
                 </div>
-                <p className="text-sm text-slate-200 leading-relaxed">{data.summary}</p>
+                <div className="text-sm text-slate-200 leading-relaxed min-h-[60px]">
+                  <TypingText text={data.summary} speed={20} />
+                </div>
               </motion.div>
             )}
+
+            {/* TradingView Chart */}
+            <motion.div variants={fadeUp} className="h-[500px] w-full mt-6 rounded-2xl overflow-hidden border border-slate-800/60">
+              <AdvancedRealTimeChart 
+                symbol={`BSE:${data.symbol}`} 
+                theme="dark" 
+                autosize
+                backgroundColor="#0f172a"
+                hide_side_toolbar={false}
+              />
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
 
       {/* Empty state */}
-      {!data && !error && !loading && (
+      {!data && !loading && (
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <div className="w-14 h-14 rounded-2xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center mb-4">
             <BrainCircuit className="w-6 h-6 text-violet-400" />

@@ -1,5 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useReactTable, getCoreRowModel, getSortedRowModel } from "@tanstack/react-table";
+import { PieChart as RechartsPie, Pie, Cell, ResponsiveContainer, RadialBarChart, RadialBar, Tooltip } from "recharts";
 import {
   addHolding,
   getHoldings,
@@ -9,9 +11,12 @@ import {
   createUser
 } from "../services/api";
 import {
-  Briefcase, Plus, Edit2, Trash2, PieChart, Loader2, Target, TrendingUp, AlertTriangle, Activity, Check, X, Shield, BarChart3, Fingerprint, Zap, UserPlus
+  Briefcase, Plus, Edit2, Trash2, PieChart, Loader2, Target, TrendingUp, AlertTriangle, Activity, Check, X, Shield, BarChart3, Fingerprint, Zap, UserPlus, FileText, CheckCircle2, Download
 } from "lucide-react";
-import { Badge, AlertBox, SkeletonBlock } from "../components/ui";
+import toast from "react-hot-toast";
+import { Badge, SkeletonBlock, TypingText } from "../components/ui";
+
+const COLORS = ["#8b5cf6", "#ec4899", "#10b981", "#f59e0b", "#3b82f6", "#ef4444"];
 
 const PortfolioPage = () => {
   const [userId, setUserId] = useState(1);
@@ -34,26 +39,39 @@ const PortfolioPage = () => {
   const [newUser, setNewUser] = useState({ name: "", email: "" });
   const [createdUserId, setCreatedUserId] = useState(null);
   const [creatingUser, setCreatingUser] = useState(false);
-  const [userError, setUserError] = useState(null);
-  const [userSuccessMessage, setUserSuccessMessage] = useState("");
 
-  // Create user
+  // TanStack Table for Holdings
+  const [sorting, setSorting] = useState([]);
+  const columns = useMemo(() => [
+    { accessorKey: "symbol", id: "symbol" },
+    { accessorKey: "quantity", id: "quantity" },
+    { accessorKey: "buyPrice", id: "buy_price" },
+    { id: "amount", accessorFn: row => row.quantity * row.buyPrice }
+  ], []);
+
+  const table = useReactTable({
+    data: holdings,
+    columns,
+    state: { sorting },
+    onSortingChange: setSorting,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+  });
+
   const handleCreateUser = async (e) => {
     e.preventDefault();
     if (!newUser.name || !newUser.email) return;
     setCreatingUser(true);
-    setUserError(null);
-    setUserSuccessMessage("");
     try {
       const res = await createUser({ name: newUser.name, email: newUser.email });
       const newId = res.data.id;
       setCreatedUserId(newId);
       setUserId(newId);
       setNewUser({ name: "", email: "" });
-      setUserSuccessMessage(`User Created Successfully! ID: ${newId}`);
+      toast.success(`User Created! ID: ${newId}`);
     } catch (err) {
       console.error(err);
-      setUserError("Failed to create user.");
+      toast.error("Failed to create user.");
     } finally {
       setCreatingUser(false);
     }
@@ -66,10 +84,9 @@ const PortfolioPage = () => {
     try {
       const res = await getHoldings(userId);
       setHoldings(res.data);
-      setError(null);
     } catch (err) {
       console.error(err);
-      setError("Failed to load holdings.");
+      toast.error("Failed to load holdings.");
     } finally {
       setLoading(false);
     }
@@ -91,9 +108,10 @@ const PortfolioPage = () => {
         buy_price: Number(form.buy_price)
       });
       setForm({ symbol: "", quantity: "", buy_price: "" });
+      toast.success("Holding added!");
       loadHoldings();
     } catch (err) {
-      setError("Failed to add holding.");
+      toast.error("Failed to add holding.");
     }
   };
 
@@ -119,9 +137,10 @@ const PortfolioPage = () => {
         buy_price: Number(editForm.buy_price),
       });
       setEditingId(null);
+      toast.success("Holding updated!");
       loadHoldings();
     } catch (err) {
-      setError("Failed to update holding.");
+      toast.error("Failed to update holding.");
     }
   };
 
@@ -130,9 +149,10 @@ const PortfolioPage = () => {
     if(!window.confirm("Are you sure you want to delete this holding?")) return;
     try {
       await deleteHolding(id);
+      toast.success("Holding deleted!");
       loadHoldings();
     } catch (err) {
-      setError("Failed to delete holding.");
+      toast.error("Failed to delete holding.");
     }
   };
 
@@ -143,14 +163,37 @@ const PortfolioPage = () => {
     try {
       const res = await analyzePortfolio(userId);
       setAnalysis(res.data);
+      toast.success("Portfolio analysis complete!");
     } catch (err) {
-      setError("Failed to analyze portfolio.");
+      toast.error("Failed to analyze portfolio.");
     } finally {
       setAnalyzing(false);
     }
   };
 
+  const exportCSV = () => {
+    if (!holdings || holdings.length === 0) {
+      toast.error("No holdings to export.");
+      return;
+    }
+    const header = "Symbol,Quantity,Buy Price,Total Invested\n";
+    const rows = holdings.map(h => `${h.symbol},${h.quantity},${h.buyPrice},${h.quantity * h.buyPrice}`).join("\n");
+    const blob = new Blob([header + rows], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `portfolio_${userId}_holdings.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Exported CSV successfully!");
+  };
+
   // Helpers for UI
+  const getScoreColorHex = (score) => {
+    if (score >= 70) return "#34d399";
+    if (score >= 40) return "#fbbf24";
+    return "#f87171";
+  };
   const getScoreColor = (score) => {
     if (score >= 70) return "text-emerald-400";
     if (score >= 40) return "text-yellow-400";
@@ -194,8 +237,6 @@ const PortfolioPage = () => {
             {creatingUser ? <Loader2 className="w-4 h-4 animate-spin" /> : "Create User"}
           </button>
         </form>
-        {userError && <p className="text-red-400 text-xs mt-3">{userError}</p>}
-        {userSuccessMessage && <p className="text-emerald-400 text-xs mt-3">{userSuccessMessage}</p>}
       </div>
 
       {/* Header section */}
@@ -229,8 +270,6 @@ const PortfolioPage = () => {
           </button>
         </div>
       </div>
-
-      {error && <AlertBox message={error} />}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
@@ -278,9 +317,31 @@ const PortfolioPage = () => {
 
           {/* Holdings List */}
           <div>
-            <h2 className="text-sm font-semibold text-slate-300 flex items-center gap-2 mb-4">
-              <Briefcase className="w-4 h-4 text-indigo-400" /> Current Holdings ({holdings.length})
-            </h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-semibold text-slate-300 flex items-center gap-2">
+                <Briefcase className="w-4 h-4 text-indigo-400" /> Current Holdings ({holdings.length})
+              </h2>
+              <div className="flex items-center gap-2">
+                {holdings.length > 0 && (
+                  <select 
+                    className="bg-slate-900 border border-slate-700/60 rounded-lg text-xs px-2 py-1.5 text-slate-300 focus:outline-none focus:border-violet-500 cursor-pointer"
+                    onChange={(e) => {
+                      if(e.target.value === "") setSorting([]);
+                      else setSorting([{ id: e.target.value, desc: true }]);
+                    }}
+                  >
+                    <option value="">Sort...</option>
+                    <option value="amount">Invested (High)</option>
+                    <option value="quantity">Quantity (High)</option>
+                  </select>
+                )}
+                {holdings.length > 0 && (
+                  <button onClick={exportCSV} className="text-xs flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 transition-colors hidden sm:flex">
+                    <Download className="w-3.5 h-3.5" /> Export
+                  </button>
+                )}
+              </div>
+            </div>
             
             <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
               {loading ? (
@@ -292,9 +353,11 @@ const PortfolioPage = () => {
                 </div>
               ) : (
                 <AnimatePresence>
-                  {holdings.map((h) => (
-                    <motion.div
-                      key={h.id}
+                  {table.getRowModel().rows.map((row) => {
+                    const h = row.original;
+                    return (
+                      <motion.div
+                        key={h.id}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, scale: 0.95 }}
@@ -357,7 +420,8 @@ const PortfolioPage = () => {
                         </div>
                       )}
                     </motion.div>
-                  ))}
+                    );
+                  })}
                 </AnimatePresence>
               )}
             </div>
@@ -378,13 +442,28 @@ const PortfolioPage = () => {
               className="space-y-6" 
             >
               {/* Top Metrics */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="bg-slate-900 border border-slate-800/60 p-4 rounded-2xl">
-                  <div className="flex items-center gap-2 text-slate-400 text-xs font-semibold mb-2">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="bg-slate-900 border border-slate-800/60 p-4 rounded-2xl flex flex-col items-center justify-center relative">
+                  <div className="flex items-center gap-2 text-slate-400 text-xs font-semibold mb-1 w-full justify-start">
                     <Target className="w-4 h-4 text-violet-400" /> Health Score
                   </div>
-                  <div className={`text-2xl font-bold font-mono ${getScoreColor(analysis.portfolioHealthScore)}`}>
-                    {analysis.portfolioHealthScore}/100
+                  <div className="w-24 h-24 mb-[-20px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <RadialBarChart
+                        cx="50%" cy="50%" innerRadius="70%" outerRadius="100%" barSize={8}
+                        data={[{ name: "Health", value: analysis.portfolioHealthScore || 0 }]}
+                        startAngle={225} endAngle={-45}
+                      >
+                        <RadialBar
+                          minAngle={15} background={{ fill: '#1e293b' }} clockWise
+                          dataKey="value" fill={getScoreColorHex(analysis.portfolioHealthScore)}
+                          cornerRadius={10}
+                        />
+                      </RadialBarChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className={`text-xl absolute bottom-5 font-bold font-mono ${getScoreColor(analysis.portfolioHealthScore)}`}>
+                    {analysis.portfolioHealthScore}
                   </div>
                 </div>
                 
@@ -447,23 +526,38 @@ const PortfolioPage = () => {
                   </p>
                   
                   {analysis.diversification?.sectorExposure && (
-                    <div className="space-y-4">
-                      {Object.entries(analysis.diversification.sectorExposure).map(([sector, pct]) => (
-                        <div key={sector}>
-                          <div className="flex justify-between text-xs mb-1.5">
-                            <span className="text-slate-400">{sector}</span>
-                            <span className="text-slate-200 font-mono">{pct}%</span>
+                    <div className="mt-4 flex flex-col items-center justify-center">
+                      <div className="w-48 h-48">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <RechartsPie>
+                            <Pie
+                              data={Object.entries(analysis.diversification.sectorExposure).map(([name, value]) => ({ name, value }))}
+                              innerRadius={60}
+                              outerRadius={80}
+                              paddingAngle={5}
+                              dataKey="value"
+                              stroke="none"
+                            >
+                              {Object.keys(analysis.diversification.sectorExposure).map((_, index) => (
+                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                              ))}
+                            </Pie>
+                            <Tooltip
+                               wrapperStyle={{ outline: 'none' }}
+                               contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '0.75rem', fontSize: '12px', color: '#f8fafc' }}
+                               itemStyle={{ color: '#c1c7d0' }}
+                             />
+                          </RechartsPie>
+                        </ResponsiveContainer>
+                      </div>
+                      <div className="flex flex-wrap justify-center gap-2 mt-4">
+                        {Object.entries(analysis.diversification.sectorExposure).map(([sector, pct], idx) => (
+                          <div key={sector} className="flex items-center gap-1 text-[10px] text-slate-300 font-medium">
+                            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[idx % COLORS.length] }} />
+                            {sector} ({pct}%)
                           </div>
-                          <div className="h-1.5 bg-slate-950 rounded-full overflow-hidden border border-slate-800/50">
-                            <motion.div 
-                              initial={{ width: 0 }}
-                              animate={{ width: `${pct}%` }}
-                              transition={{ duration: 1 }}
-                              className="h-full bg-gradient-to-r from-indigo-600 to-violet-500 rounded-full"
-                            />
-                          </div>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -530,12 +624,14 @@ const PortfolioPage = () => {
                 <h3 className="text-sm font-semibold text-slate-300 flex items-center gap-2 mb-4">
                   <AlertTriangle className="w-4 h-4 text-yellow-400" /> Recommended Actions
                 </h3>
-                <ul className="space-y-2">
+                <ul className="space-y-3">
                   {analysis.actions && analysis.actions.length > 0 ? (
                     analysis.actions.map((action, i) => (
-                      <li key={i} className="flex items-start gap-2 text-sm text-slate-400 bg-slate-950 p-3 rounded-xl border border-slate-800/50">
-                        <span className="text-slate-500 mt-0.5">•</span>
-                        <span>{action}</span>
+                      <li key={i} className="flex items-start gap-3 bg-yellow-500/10 p-3.5 rounded-xl border border-yellow-500/20 shadow-sm shadow-yellow-900/10">
+                        <div className="mt-0.5 p-1 rounded-full bg-yellow-500/20 text-yellow-500 shrink-0">
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                        </div>
+                        <span className="text-sm text-yellow-100/90 font-medium">{action}</span>
                       </li>
                     ))
                   ) : (
@@ -549,9 +645,9 @@ const PortfolioPage = () => {
                 <h3 className="text-sm font-semibold text-violet-300 mb-2 flex items-center gap-2">
                   <Activity className="w-4 h-4" /> Comprehensive Summary
                 </h3>
-                <p className="text-sm text-slate-300 leading-relaxed">
-                  {analysis.summary}
-                </p>
+                <div className="text-sm text-slate-300 leading-relaxed min-h-[60px]">
+                  <TypingText text={analysis.summary || ""} speed={15} />
+                </div>
               </div>
 
             </motion.div>

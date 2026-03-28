@@ -1,7 +1,9 @@
-import { useState } from "react";
-import { Sun, Moon, Bell, Menu, BrainCircuit, Radar, Activity, PieChart } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Sun, Moon, Bell, Menu, BrainCircuit, Radar, Activity, PieChart, LayoutDashboard, Search } from "lucide-react";
+import { getLiveTicker } from "../services/api";
 
 const NAV_ITEMS = [
+  { id: "dashboard", label: "Dashboard",      Icon: LayoutDashboard },
   { id: "advisor", label: "Stock Advisor",    Icon: BrainCircuit },
   { id: "scanner", label: "Opportunity Finder", Icon: Radar },
   { id: "trades",  label: "Trade Analyser",   Icon: Activity },
@@ -9,6 +11,7 @@ const NAV_ITEMS = [
 ];
 
 const PAGE_TITLES = {
+  dashboard: { title: "Dashboard",         sub: "Overview of your trading activities" },
   advisor: { title: "Stock Advisor",       sub: "AI-powered single stock analysis" },
   scanner: { title: "Opportunity Finder",  sub: "AI market scan for top opportunities" },
   trades:  { title: "Trade Analyser",      sub: "Analyze your trades and improve your strategy" },
@@ -17,15 +20,68 @@ const PAGE_TITLES = {
 
 export function TopNav({ activePage, setActivePage, darkMode, setDarkMode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [tickerData, setTickerData] = useState([]);
   const page = PAGE_TITLES[activePage] ?? PAGE_TITLES.advisor;
+
+  useEffect(() => {
+    let mounted = true;
+    const fetchTicker = async () => {
+      try {
+        const res = await getLiveTicker();
+        if (mounted && res.data) setTickerData(res.data);
+      } catch (err) {
+        console.error("Failed to fetch live ticker", err);
+      }
+    };
+    
+    fetchTicker();
+    const interval = setInterval(fetchTicker, 60000); // refresh every minute
+    return () => {
+      mounted = false;
+      clearInterval(interval);
+    };
+  }, []);
 
   return (
     <>
+      <style>{`
+        @keyframes marquee {
+          0% { transform: translateX(0); }
+          100% { transform: translateX(-50%); }
+        }
+        .animate-marquee {
+          animation: marquee 25s linear infinite;
+        }
+      `}</style>
+
+      {/* Ticker Tape */}
+      {tickerData.length > 0 && (
+        <div className="w-full bg-slate-950 border-b border-slate-800/60 py-1.5 overflow-hidden flex items-center relative z-50">
+          <div className="flex animate-marquee whitespace-nowrap">
+            {tickerData.map((val, idx) => (
+              <div key={idx} className="flex items-center gap-2 mx-6 text-[10px] sm:text-[11px] font-mono">
+                <span className="text-slate-300 font-bold">{val.symbol}</span>
+                <span className="text-slate-400">{val.price}</span>
+                <span className={val.up ? "text-emerald-400" : "text-red-400"}>{val.change}</span>
+              </div>
+            ))}
+            {/* Duplicate for seamless loop */}
+            {tickerData.map((val, idx) => (
+              <div key={`dup-${idx}`} className="flex items-center gap-2 mx-6 text-[10px] sm:text-[11px] font-mono">
+                <span className="text-slate-300 font-bold">{val.symbol}</span>
+                <span className="text-slate-400">{val.price}</span>
+                <span className={val.up ? "text-emerald-400" : "text-red-400"}>{val.change}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <header className="sticky top-0 z-40 bg-slate-950/80 backdrop-blur-xl border-b border-slate-800/60">
         <div className="flex items-center justify-between px-4 md:px-6 py-3 gap-4">
 
-          {/* Left: Mobile branding + hamburger */}
-          <div className="flex items-center gap-3">
+          {/* Left: Mobile branding + hamburger & Title */}
+          <div className="flex items-center gap-4">
             <button
               className="md:hidden p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
               onClick={() => setMobileOpen(!mobileOpen)}
@@ -33,12 +89,20 @@ export function TopNav({ activePage, setActivePage, darkMode, setDarkMode }) {
               <Menu className="w-5 h-5" />
             </button>
             <span className="md:hidden font-bold text-white text-sm">AI Trading Coach</span>
+            <div className="hidden md:block">
+              <h1 className="text-sm font-semibold text-white">{page.title}</h1>
+              <p className="text-[10px] text-slate-500 mt-0.5">{page.sub}</p>
+            </div>
           </div>
 
-          {/* Center: Page title */}
-          <div className="hidden md:block">
-            <h1 className="text-sm font-semibold text-white">{page.title}</h1>
-            <p className="text-[10px] text-slate-500 mt-0.5">{page.sub}</p>
+          {/* Center: Search input */}
+          <div className="hidden md:flex flex-1 max-w-sm mx-auto items-center relative">
+            <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input 
+              type="text" 
+              placeholder="Search stocks..." 
+              className="w-full bg-slate-900/50 border border-slate-800 rounded-lg pl-9 pr-4 py-1.5 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/50 transition-all font-mono"
+            />
           </div>
 
           {/* Right: actions */}

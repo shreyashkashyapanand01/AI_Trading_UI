@@ -1,11 +1,15 @@
 import React, { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import {
+  useReactTable, getCoreRowModel, getSortedRowModel, getFilteredRowModel, flexRender
+} from "@tanstack/react-table";
 import { scanMarket } from "../services/api";
 import {
   Radar, TrendingUp, TrendingDown, Loader2, AlertCircle,
   Filter, BarChart2, ChevronUp, ChevronDown,
 } from "lucide-react";
-import { Badge, AlertBox, SkeletonBlock } from "../components/ui";
+import toast from "react-hot-toast";
+import { Badge, SkeletonBlock } from "../components/ui";
 
 /* ── helpers ─────────────────────────────────────────── */
 function scoreColor(score) {
@@ -19,74 +23,7 @@ function scoreBar(score, max = 10) {
   return { pct, color };
 }
 
-const SECTORS = ["All", "NIFTY", "FOSec", "SecGtr20", "SecLwr20"];
-const SORT_OPTIONS = [
-  { label: "Score ↓", key: "score",    dir: "desc" },
-  { label: "Score ↑", key: "score",    dir: "asc"  },
-  { label: "Momentum↓", key: "momentum", dir: "desc" },
-];
-
-const StockCard = ({ item, index }) => {
-  const { pct, color } = scoreBar(item.score);
-  const isUp = item.momentum > 10;
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.04 }}
-      className="bg-slate-900 border border-slate-800/60 rounded-2xl p-4 hover:border-slate-700 hover:shadow-lg hover:shadow-black/20 transition-all duration-200 group"
-    >
-      {/* Header */}
-      <div className="flex items-start justify-between mb-3">
-        <div>
-          <p className="font-mono font-bold text-white text-base group-hover:text-violet-300 transition-colors">
-            {item.symbol}
-          </p>
-          <span className="inline-block text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded mt-1 font-medium">
-            {item.sector}
-          </span>
-        </div>
-        <div className="flex flex-col items-end gap-1">
-          <span className={`font-mono font-bold text-lg leading-none ${scoreColor(item.score)}`}>
-            {item.score.toFixed(1)}
-          </span>
-          <span className="text-[10px] text-slate-500">score</span>
-        </div>
-      </div>
-
-      {/* Score bar */}
-      <div className="mb-3">
-        <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
-          <motion.div
-            className={`h-full ${color} rounded-full`}
-            initial={{ width: 0 }}
-            animate={{ width: `${pct}%` }}
-            transition={{ duration: 0.6, delay: index * 0.04 + 0.2 }}
-          />
-        </div>
-      </div>
-
-      {/* Momentum badge */}
-      <div className="flex items-center justify-between mb-3">
-        <div className={`flex items-center gap-1 text-xs font-semibold
-          ${isUp ? "text-emerald-400" : "text-red-400"}`}
-        >
-          {isUp ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-          Momentum: {item.momentum.toFixed(1)}
-        </div>
-        <Badge
-          label={isUp ? "bullish" : "bearish"}
-          variant={isUp ? "bullish" : "bearish"}
-        />
-      </div>
-
-      {/* Summary */}
-      <p className="text-xs text-slate-500 leading-relaxed line-clamp-3">
-        {item.summary}
-      </p>
-    </motion.div>
-  );
-};
+// Table replaces StockCard
 
 /* ── skeleton grid ───────────────────────────────────── */
 function ScanSkeleton() {
@@ -100,7 +37,7 @@ function ScanSkeleton() {
 }
 
 /* ── main component ──────────────────────────────────── */
-function ScanPage() {
+function ScanPage({ onAnalyze }) {
   // ── unchanged business logic ──
   const [data,    setData]    = useState([]);
   const [loading, setLoading] = useState(false);
@@ -115,26 +52,100 @@ function ScanPage() {
       const res = await scanMarket();
       setData(res.data.opportunities || []);
       setScanned(true);
+      toast.success("Market scan complete!");
     } catch (err) {
-      setError("Failed to scan market. Make sure the backend is running on port 8080.");
+      toast.error("Failed to scan market. Make sure the backend is running on port 8080.");
       console.error(err);
     } finally {
       setLoading(false);
     }
   };
 
-  // ── UI-only filter/sort state ──
-  const [sector, setSector]   = useState("All");
-  const [sortIdx, setSortIdx] = useState(0);
+  // ── TanStack Table Setup ──
+  const [sorting, setSorting] = useState([{ id: 'score', desc: true }]);
+  const [globalFilter, setGlobalFilter] = useState("");
 
-  const filtered = useMemo(() => {
-    const s = SORT_OPTIONS[sortIdx];
-    return [...data]
-      .filter((d) => sector === "All" || d.sector === sector)
-      .sort((a, b) =>
-        s.dir === "desc" ? b[s.key] - a[s.key] : a[s.key] - b[s.key]
-      );
-  }, [data, sector, sortIdx]);
+  const columns = useMemo(() => [
+    {
+      header: "Symbol & Sector",
+      accessorKey: "symbol",
+      cell: ({ row }) => {
+        const item = row.original;
+        const isTopPick = (item.score >= 5 && row.index === 0 && sorting.length > 0 && sorting[0].id === 'score' && sorting[0].desc);
+        return (
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center gap-3">
+              <span className="font-bold text-white text-base font-mono">{item.symbol}</span>
+              <span className="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded font-medium">{item.sector}</span>
+              {isTopPick && (
+                <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider bg-violet-500/20 text-violet-400 px-2 py-0.5 rounded border border-violet-500/30">
+                  Top Pick 🎯
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-slate-500 mt-1 w-full max-w-2xl leading-relaxed text-wrap">{item.summary}</p>
+          </div>
+        );
+      }
+    },
+    {
+      header: "AI Score",
+      accessorKey: "score",
+      cell: ({ row }) => {
+        const item = row.original;
+        const { pct, color } = scoreBar(item.score);
+        return (
+          <div className="flex items-center gap-3">
+            <span className={`font-mono font-bold text-lg ${scoreColor(item.score)} ${item.score >= 10 ? 'drop-shadow-[0_0_8px_rgba(52,211,153,0.5)]' : ''}`}>
+              {item.score.toFixed(1)} {item.score >= 10 && '🔥'}
+            </span>
+            <div className="w-16 h-1.5 bg-slate-800 rounded-full overflow-hidden hidden md:block">
+              <div className={`h-full ${color}`} style={{ width: `${pct}%` }} />
+            </div>
+          </div>
+        );
+      }
+    },
+    {
+      header: "Momentum",
+      accessorKey: "momentum",
+      cell: ({ row }) => {
+        const item = row.original;
+        const isUp = item.momentum > 10;
+        return (
+          <div className={`flex items-center gap-1 font-semibold ${isUp ? "text-emerald-400" : "text-red-400"}`}>
+            {isUp ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
+            {item.momentum.toFixed(1)}
+          </div>
+        );
+      }
+    },
+    {
+      header: "Action",
+      id: "action",
+      cell: ({ row }) => (
+        <div className="text-right">
+          <button 
+            onClick={() => onAnalyze && onAnalyze(row.original.symbol)}
+            className="text-xs font-semibold px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-white transition-colors"
+          >
+            Analyze
+          </button>
+        </div>
+      )
+    }
+  ], [onAnalyze, sorting]);
+
+  const table = useReactTable({
+    data,
+    columns,
+    state: { sorting, globalFilter },
+    onSortingChange: setSorting,
+    onGlobalFilterChange: setGlobalFilter,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+  });
 
   return (
     <div className="space-y-5">
@@ -157,55 +168,73 @@ function ScanPage() {
         )}
       </div>
 
-      {error && <AlertBox message={error} />}
       {loading && <ScanSkeleton />}
 
-      {/* ── Filters (UI-only) ─────────────────────────── */}
+      {/* ── Filters (TanStack) ─────────────────────────── */}
       {scanned && data.length > 0 && !loading && (
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-1.5 text-xs text-slate-500">
-            <Filter className="w-3.5 h-3.5" /> Filter:
+            <Filter className="w-3.5 h-3.5" /> Search:
           </div>
-          {SECTORS.map((s) => (
-            <button
-              key={s}
-              onClick={() => setSector(s)}
-              className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors
-                ${sector === s
-                  ? "bg-violet-500/15 text-violet-300 border-violet-500/30"
-                  : "bg-transparent text-slate-500 border-slate-700 hover:border-slate-600 hover:text-slate-300"
-                }`}
-            >
-              {s}
-            </button>
-          ))}
-          <div className="ml-auto flex items-center gap-1.5 text-xs text-slate-500">
-            <BarChart2 className="w-3.5 h-3.5" /> Sort:
-          </div>
-          {SORT_OPTIONS.map((opt, i) => (
-            <button
-              key={i}
-              onClick={() => setSortIdx(i)}
-              className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors
-                ${sortIdx === i
-                  ? "bg-indigo-500/15 text-indigo-300 border-indigo-500/30"
-                  : "bg-transparent text-slate-500 border-slate-700 hover:border-slate-600 hover:text-slate-300"
-                }`}
-            >
-              {opt.label}
-            </button>
-          ))}
+          <input
+            type="text"
+            value={globalFilter ?? ""}
+            onChange={e => setGlobalFilter(e.target.value)}
+            placeholder="Search symbol, sector..."
+            className="px-4 py-2 w-full max-w-sm rounded-xl text-sm bg-slate-900 border border-slate-700/60 text-slate-200 placeholder:text-slate-500 focus:outline-none focus:border-violet-500/50 transition-colors"
+          />
         </div>
       )}
 
-      {/* ── Cards ─────────────────────────────────────── */}
+      {/* ── Table ─────────────────────────────────────── */}
       <AnimatePresence>
-        {filtered.length > 0 && !loading && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-            {filtered.map((item, idx) => (
-              <StockCard key={item.symbol + idx} item={item} index={idx} />
-            ))}
-          </div>
+        {table.getRowModel().rows.length > 0 && !loading && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="overflow-x-auto rounded-2xl border border-slate-800 bg-slate-900"
+          >
+            <table className="w-full text-left text-sm text-slate-300">
+              <thead className="text-xs text-slate-500 uppercase bg-slate-900/50 border-b border-slate-800">
+                {table.getHeaderGroups().map(headerGroup => (
+                  <tr key={headerGroup.id}>
+                    {headerGroup.headers.map(header => (
+                      <th 
+                        key={header.id} 
+                        className={`px-6 py-4 font-semibold ${header.column.getCanSort() ? 'cursor-pointer select-none' : ''}`}
+                        onClick={header.column.getToggleSortingHandler()}
+                      >
+                        <div className={`flex items-center gap-2 ${header.id === 'action' ? 'justify-end' : ''}`}>
+                          {flexRender(header.column.columnDef.header, header.getContext())}
+                          {{
+                            asc: <ChevronUp className="w-3.5 h-3.5" />,
+                            desc: <ChevronDown className="w-3.5 h-3.5" />,
+                          }[header.column.getIsSorted()] ?? null}
+                        </div>
+                      </th>
+                    ))}
+                  </tr>
+                ))}
+              </thead>
+              <tbody>
+                {table.getRowModel().rows.map((row, idx) => (
+                  <motion.tr 
+                    key={row.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: idx * 0.05 }}
+                    className="border-b border-slate-800/50 last:border-0 hover:bg-slate-800/30 transition-colors"
+                  >
+                    {row.getVisibleCells().map(cell => (
+                      <td key={cell.id} className="px-6 py-4">
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </td>
+                    ))}
+                  </motion.tr>
+                ))}
+              </tbody>
+            </table>
+          </motion.div>
         )}
       </AnimatePresence>
 
