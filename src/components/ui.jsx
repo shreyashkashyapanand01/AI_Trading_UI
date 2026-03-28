@@ -1,3 +1,5 @@
+import { useState, useEffect } from "react";
+
 // Reusable Badge component
 export function Badge({ label, variant = "neutral" }) {
   const variants = {
@@ -56,6 +58,13 @@ export function SkeletonBlock({ className = "" }) {
   );
 }
 
+// Skeleton circle loader
+export function SkeletonCircle({ className = "w-24 h-24" }) {
+  return (
+    <div className={`animate-pulse bg-slate-800/80 rounded-full flex items-center justify-center ${className}`} />
+  );
+}
+
 export function SkeletonCard() {
   return (
     <div className="space-y-4">
@@ -84,4 +93,45 @@ export function AlertBox({ message, variant = "error" }) {
       {message}
     </div>
   );
+}
+
+// Meter component (gauge-like)
+export function Meter({ label, value, valuePct, min = 0, max = 100, colorClass = "bg-violet-500" }) {
+  const pct = valuePct !== undefined ? valuePct : Math.min(100, Math.max(0, ((value - min) / (max - min)) * 100));
+  return (
+    <div className="space-y-2 py-2">
+      <div className="flex justify-between items-end">
+        <span className="text-xs text-slate-400 font-medium">{label}</span>
+        <span className="text-sm font-semibold text-slate-200">{value}</span>
+      </div>
+      <div className="flex w-full h-2 rounded-full overflow-hidden bg-slate-800">
+        <div className={`h-full ${colorClass} transition-all duration-1000 ease-out`} style={{ width: `${pct}%` }} />
+      </div>
+      <div className="flex justify-between text-[9px] text-slate-500 font-mono">
+        <span>Low</span>
+        <span>High</span>
+      </div>
+    </div>
+  );
+}
+
+// TypingText for AI summary
+export function TypingText({ text, speed = 15 }) {
+  const [displayedText, setDisplayedText] = useState("");
+
+  useEffect(() => {
+    setDisplayedText("");
+    let i = 0;
+    const timer = setInterval(() => {
+      if (i < text.length) {
+        setDisplayedText((prev) => prev + text.charAt(i));
+        i++;
+      } else {
+        clearInterval(timer);
+      }
+    }, speed);
+    return () => clearInterval(timer);
+  }, [text, speed]);
+
+  return <span>{displayedText}</span>;
 }

@@ -11,6 +11,10 @@ export const analyzeStock = (symbol) =>
 export const scanMarket = () =>
   API.get(`/stock/scan`);
 
+// ---------------- MARKET ----------------
+export const getLiveTicker = () =>
+  API.get(`/api/market/ticker`);
+
 // ---------------- TRADE ----------------
 export const analyzeTrades = (data) =>
   API.post("/trade/analyze", data);

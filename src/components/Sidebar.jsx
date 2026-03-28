@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 
 const navItems = [
+  { id: "dashboard", label: "Dashboard",           icon: LayoutDashboard },
   { id: "advisor",  label: "Stock Advisor",          icon: BrainCircuit },
   { id: "scanner",  label: "Opportunity Finder",     icon: Radar },
   { id: "trades",   label: "Trade Analyser",         icon: Activity },
