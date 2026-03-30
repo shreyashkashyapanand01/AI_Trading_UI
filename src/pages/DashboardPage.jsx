@@ -23,7 +23,7 @@ export default function DashboardPage({ setActivePage }) {
       animate="show"
     >
       {/* Welcome & Quick Stats */}
-      <h2 className="text-xl font-bold tracking-tight text-white mb-4">Welcome back to AI Trading Coach</h2>
+      <h2 className="text-xl font-bold tracking-tight text-white mb-4">Welcome back to AlgoTradeSight</h2>
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Card 1 */}

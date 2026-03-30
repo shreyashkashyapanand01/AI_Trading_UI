@@ -24,7 +24,7 @@ export function Sidebar({ activePage, setActivePage }) {
             <TrendingUp className="w-3.5 h-3.5 text-violet-300 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
           </div>
           <div>
-            <p className="text-sm font-bold text-white leading-tight">AI Trading</p>
+            <p className="text-sm font-bold text-white leading-tight">AlgoTradeSight</p>
             <p className="text-[10px] text-slate-500 leading-tight">Coach</p>
           </div>
         </div>

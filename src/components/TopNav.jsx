@@ -88,7 +88,7 @@ export function TopNav({ activePage, setActivePage, darkMode, setDarkMode }) {
             >
               <Menu className="w-5 h-5" />
             </button>
-            <span className="md:hidden font-bold text-white text-sm">AI Trading Coach</span>
+            <span className="md:hidden font-bold text-white text-sm">AlgoTradeSight</span>
             <div className="hidden md:block">
               <h1 className="text-sm font-semibold text-white">{page.title}</h1>
               <p className="text-[10px] text-slate-500 mt-0.5">{page.sub}</p>

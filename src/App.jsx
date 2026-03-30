@@ -66,7 +66,7 @@ function App() {
 
           {/* Footer */}
           <footer className="border-t border-slate-800/60 px-6 py-3 flex items-center justify-between text-[10px] text-slate-600">
-            <span>AI Trading Coach © 2026</span>
+            <span>AlgoTradeSight © 2026</span>
             <span className="flex items-center gap-3">
               <span>React 19</span>
               <span>·</span>
